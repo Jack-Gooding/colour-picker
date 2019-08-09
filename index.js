@@ -4,7 +4,7 @@ const Database = require('better-sqlite3');
 
 const Jimp = require('Jimp');
 
-const db = new Database('mousePos.db', { verbose: console.log });
+const db = new Database('mousePos.db'); // ,{ verbose: console.log }
 
 const createTable = db.prepare(`CREATE TABLE IF NOT EXISTS mousePos(
                     xPosition INTEGER NOT NULL,
@@ -56,15 +56,17 @@ function hexToRgb(hex) {
   } : null;
 }
 
+const scale = (num, in_min, in_max, out_min, out_max) => {
+  return (num - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
+}
 
 function averageColors(colorArray){
     var red = 0, green = 0, blue = 0;
     if (colorArray.length) {
       for (let i = 0; i < colorArray.length; i++ ){
-          //rgb = Jimp.intToRGBA(0x00FF00FF);
-          //console.log(hexToRgb("#0033ff").g);
+
           let rgb = hexToRgb(colorArray[i]);
-          //console.log(rgb);
+
           red += rgb.r;
           green += rgb.g;
           blue += rgb.b;
@@ -76,8 +78,6 @@ function averageColors(colorArray){
     blue = Math.floor(blue/colorArray.length);
     }
 
-    //console.log(red + ", " + green + ", " + blue);
-    //return rgbToHex(red, green, blue);
     return [red, green, blue];
 }
 
@@ -93,6 +93,7 @@ let buildImage = function() {
 
   imageArrayData.forEach(function(row, i) {
     imageArrayData[i].forEach(function(col, j) {
+      heatmapData[i][j] = imageArrayData[i][j].length;
       imageArrayData[i][j] = averageColors(imageArrayData[i][j]);
     })
   })
@@ -105,17 +106,9 @@ let buildImage = function() {
     imageArrayData.forEach((row, y) => {
       row.forEach((color, x) => {
         image.setPixelColor(Jimp.rgbaToInt(color[0],color[1],color[2],255), x, y);
-        //console.log(color[0]);
       });
     });
-    /*
-    for (let y = 0; y < imageArrayData.length; y++) {
-      for (let x = 0; x < imageArrayData[y].length; x++) {
-        image.setPixelColor(Jimp.rgbaToInt(parseInt(imageArrayData[y][x].r),parseInt(imageArrayData[y][x].g),parseInt(imageArrayData[y][x].b),.5), x, y);
-        console.log(imageArrayData[y][x].r,imageArrayData[y][x].g,imageArrayData[y][x].b,.5);
-    }
-  }
-  */
+
 
   date = new Date();
   date.toISOString();
@@ -124,7 +117,40 @@ let buildImage = function() {
       if (err) throw err;
     });
   });
-  //console.log(imageArrayData);
+
+
+  let heatmap = new Jimp(width, height, function (err, image) {
+    if (err) throw err;
+
+    let mostHits = 0;
+
+    heatmapData.forEach((row, y) => {
+      row.forEach((color, x) => {
+        if (color > mostHits) {
+          mostHits = color;
+          console.log(mostHits);
+        }
+      });
+    });
+
+
+    heatmapData.forEach((row, y) => {
+      row.forEach((color, x) => {
+        let percent = scale(color, 0, mostHits, 0, 255);
+        percent = scale(Math.sqrt(percent), 0 , Math.sqrt(percent)+1, 0, 255);
+        image.setPixelColor(Jimp.rgbaToInt(255,255-percent,255-percent,255), x, y);
+      });
+    });
+
+
+  date = new Date();
+  date.toISOString();
+
+    image.write(`pictures/${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${date.getHours()}-${date.getMinutes()}_heatmap.png`, (err) => {
+      if (err) throw err;
+    });
+  });
+
 }
 
 if (args[0] === "build") {
@@ -134,7 +160,7 @@ buildImage();
 
 
 
-
+console.log("Recording mouse.");
 while(args[0] != "build") {
 
 // Get mouse position.
@@ -162,24 +188,3 @@ while(args[0] != "build") {
   }
 
 };
-
-/*
-// get the average color of two hex colors.
-function avgcolor(color1,color2){
-    var avg  = function(a,b){ return (a+b)/2; },
-        t16  = function(c){ return parseInt((''+c).replace('#',''),16) },
-        hex  = function(c){ var t = (c>>0).toString(16);
-                           return t.length == 2 ? t : '0' + t },
-        hex1 = t16(color1),
-        hex2 = t16(color2),
-        r    = function(hex){ return hex >> 16 & 0xFF},
-        g    = function(hex){ return hex >> 8 & 0xFF},
-        b    = function(hex){ return hex & 0xFF},
-        res  = '#' + hex(avg(r(hex1),r(hex2)))
-                   + hex(avg(g(hex1),g(hex2)))
-                   + hex(avg(b(hex1),b(hex2)));
-    return res;
-}
-
-// e.g.
-avgcolor('#ffffff','#000000'); */
