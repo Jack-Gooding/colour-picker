@@ -15,12 +15,6 @@ createTable.run();
 
 const insertData = db.prepare(`INSERT INTO mousePos(xPosition, yPosition, hexColour) VALUES (?, ?, ?)`);
 const readData = db.prepare(`SELECT * FROM mousePOS`);
-const insertMany = db.transaction((data) => {
-  for (const row of data) {
-    insertData.run(row.xPosition, row.yPosition, row.hexColour);
-  }
-  console.log(`db updated.`)
-});
 //console.log(readData.all())
 
 var args = process.argv.slice(2);
@@ -34,8 +28,6 @@ var width = 1440;
 var height = 900;
 
 var date;
-
-let dataStore = [];
 
 let imageArrayData = [];
 let heatmapData = [];
@@ -92,7 +84,7 @@ function averageColors(colorArray){
 let buildImage = function() {
 
   let dbData = readData.all();
-  console.log(`Database Rows: ${dbData.length}`);
+
   dbData.forEach(function(row) {
     imageArrayData[row.yPosition][row.xPosition].push(row.hexColour);
   });
@@ -121,7 +113,7 @@ let buildImage = function() {
   date = new Date();
   date.toISOString();
 
-    image.write(`pictures/${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${date.getHours()}-${date.getMinutes()}_colourmap.png`, (err) => {
+    image.write(`pictures/${date.getFullYear()}-${date.getMonth()}-${date.getDate()}_${date.getHours()}-${date.getMinutes()}.png`, (err) => {
       if (err) throw err;
     });
   });
@@ -136,11 +128,11 @@ let buildImage = function() {
       row.forEach((color, x) => {
         if (color > mostHits) {
           mostHits = color;
+          console.log(mostHits);
         }
       });
     });
 
-    console.log(`Most Active Pixel: ${mostHits}`);
 
     heatmapData.forEach((row, y) => {
       row.forEach((color, x) => {
@@ -161,51 +153,38 @@ let buildImage = function() {
 
 }
 
+if (args[0] === "build") {
+buildImage();
+}
 
 
 
 
+console.log("Recording mouse.");
+while(args[0] != "build") {
 
-let recordMouse = function() {
-  // Get mouse position.
-    let inBounds = true;
-    mouse = robot.getMousePos();
-    if (mouse.y >= height) {
-      mouse.y = height;
-      inBounds = false;
-    }
-    if (mouse.x >= width) {
-      mouse.x = width;
-      inBounds = false;
-    }
-    if (mouse.x === prev.x && mouse.y === prev.y) {
-      inBounds = false;
-    }
+// Get mouse position.
+  let inBounds = true;
+  mouse = robot.getMousePos();
+  if (mouse.y >= height) {
+    mouse.y = height;
+    inBounds = false;
+  }
+  if (mouse.x >= width) {
+    mouse.x = width;
+    inBounds = false;
+  }
+  if (mouse.x === prev.x && mouse.y === prev.y) {
+    inBounds = false;
+  }
 
-    if (inBounds) {
-    // Get pixel color in hex format.
-      hex = robot.getPixelColor(mouse.x, mouse.y);
-      //console.log("#" + hex + " at x:" + mouse.x + " y:" + mouse.y);
-      prev.x = mouse.x;
-      prev.y = mouse.y;
-
-      dataStore.push({xPosition: mouse.x,
-                      yPosition: mouse.y,
-                      hexColour: `#${hex}`
-                    });
-
-      if (dataStore.length > 25) {
-        insertMany(dataStore);
-        dataStore = [];
-      };
-    }
+  if (inBounds) {
+  // Get pixel color in hex format.
+    hex = robot.getPixelColor(mouse.x, mouse.y);
+    //console.log("#" + hex + " at x:" + mouse.x + " y:" + mouse.y);
+    insertData.run(mouse.x,mouse.y,`#${hex}`);
+    prev.x = mouse.x;
+    prev.y = mouse.y;
+  }
 
 };
-
-if (args[0] === "build") {
-  buildImage();
-} else {
-  setInterval(function() {
-    recordMouse();
-  },30);
-}
