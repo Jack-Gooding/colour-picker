@@ -13,13 +13,16 @@ const createTable = db.prepare(`CREATE TABLE IF NOT EXISTS mousePos(
 )`);
 createTable.run();
 
+let updates = 0;
+
 const insertData = db.prepare(`INSERT INTO mousePos(xPosition, yPosition, hexColour) VALUES (?, ?, ?)`);
 const readData = db.prepare(`SELECT * FROM mousePOS`);
 const insertMany = db.transaction((data) => {
   for (const row of data) {
     insertData.run(row.xPosition, row.yPosition, row.hexColour);
   }
-  console.log(`db updated.`)
+  updates++;
+  console.log(`Database updated: ${updates}`)
 });
 //console.log(readData.all())
 
@@ -194,7 +197,7 @@ let recordMouse = function() {
                       hexColour: `#${hex}`
                     });
 
-      if (dataStore.length > 25) {
+      if (dataStore.length > 50) {
         insertMany(dataStore);
         dataStore = [];
       };
@@ -207,5 +210,5 @@ if (args[0] === "build") {
 } else {
   setInterval(function() {
     recordMouse();
-  },30);
+  },20);
 }

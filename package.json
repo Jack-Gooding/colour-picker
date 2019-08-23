@@ -9,6 +9,7 @@
   "license": "ISC",
   "dependencies": {
     "better-sqlite3": "^5.4.2",
+    "iohook": "^0.6.1",
     "jimp": "^0.6.4",
     "node-gyp": "^5.0.3",
     "robotjs": "^0.5.1"
